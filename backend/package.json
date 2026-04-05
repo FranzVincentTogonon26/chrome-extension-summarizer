@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.ts",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx src/server.ts'",
     "start": "node src/server.ts"
   },
   "keywords": [],
@@ -12,14 +12,18 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.50",
+    "ai": "^6.0.146",
     "cors": "^2.8.6",
     "dotenv": "^17.4.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
