@@ -1,127 +1,127 @@
-import { useEffect, useState } from "react"
-
-import { API_PATHS, BASE_URL } from "./libs/apiPaths";
+import { useEffect, useState, useCallback } from "react";
 
 type Status = "extracting" | "summarizing" | "done" | "error";
 
 function App() {
-
   const [summary, setSummary] = useState("");
   const [status, setStatus] = useState<Status>("extracting");
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    summarize();
-  }, [])
-
-  async function summarize() {
+  const summarize = useCallback(async () => {
     try {
-
-      console.log('jkhasjhdajkdhasdhadshjadshj')
-
       setStatus("extracting");
 
       const [tab] = await chrome.tabs.query({
         active: true,
-        currentWindow: true
+        currentWindow: true,
       });
 
-      const response = await chrome.tabs.sendMessage( tab.id!, {
-        type: "EXTRACT_TEXT"
+      const response = await chrome.tabs.sendMessage(tab.id!, {
+        type: "EXTRACT_TEXT",
       });
 
-      setStatus("summarizing")
+      setStatus("summarizing");
 
-      const res = await fetch(`${BASE_URL}${API_PATHS}`, {
+      const res = await fetch(`http://localhost:8000/api/summarize`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text: response.text })
-        });
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: response.text }),
+      });
 
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          setSummary((prev) => prev + decoder.decode(value, { stream: true }));
-        }
+      if (!res.body) throw new Error("No response body");
 
-        setStatus("done");
-      
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      setSummary(""); // reset before streaming
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        setSummary((prev) => prev + decoder.decode(value, { stream: true }));
+      }
+
+      setStatus("done");
     } catch (error) {
+      console.error(error);
       setStatus("error");
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    summarize();
+  }, [summarize]);
 
   const handleRetry = () => {
-    alert("Retrying...");
     setSummary("");
     setStatus("extracting");
     summarize();
-  }
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(summary);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
+  };
 
   return (
     <div className="w-85 min-h-40 bg-white flex flex-col">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-blue-500" />
           <span className="text-sm">Article Summarizer</span>
         </div>
-        
-        { status === "extracting" && (
-            <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse" />
-              Reading..
-            </span>
-          )
-        }
 
-        { status === "summarizing" && (
-            <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse" />
-              Summarizing..
-            </span>
-          )
-        }
+        {status === "extracting" && (
+          <span className="flex items-center gap-1.5 text-xs text-gray-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse" />
+            Reading..
+          </span>
+        )}
 
-        { status === "done" && (
-            <span className="text-xs text-green-500">Done</span>
-          )
-        }
+        {status === "summarizing" && (
+          <span className="flex items-center gap-1.5 text-xs text-gray-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse" />
+            Summarizing..
+          </span>
+        )}
+
+        {status === "done" && (
+          <span className="text-xs text-green-500">Done</span>
+        )}
       </div>
 
-      {/* Body Section */}
+      {/* Body */}
       <div className="flex-1 px-4 py-3">
-          { status === "summarizing" && !summary && (
-              <div className="flex items-center gap-1 py-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce [animation-delays:0ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce [animation-delays:150ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce [animation-delays:300ms]" />
-              </div>
-            )
-          }
+        {status === "summarizing" && !summary && (
+          <div className="flex items-center gap-1 py-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce" />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce delay-150" />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-bounce delay-300" />
+          </div>
+        )}
 
-          { summary && (
-              <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
-            )
-          }
+        {summary && (
+          <p className="text-sm text-gray-700 leading-relaxed">
+            {summary}
+          </p>
+        )}
 
-          { status === "error" && (
-              <div className="flex flex-col gap-2">
-                <p className="text-sm text-red-400">Could not summarize this page.</p>
-                <button onClick={handleRetry} className="self-start text-xs' text-blue-500 hover:underline">Try Again</button>
-              </div>
-            )
-          }
+        {status === "error" && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-red-400">
+              Could not summarize this page.
+            </p>
+            <button
+              onClick={handleRetry}
+              className="self-start text-xs text-blue-500 hover:underline"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -155,7 +155,7 @@ function App() {
                   stroke="currentColor"
                   strokeWidth="2"
                 >
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                 </svg>
                 Copy summary
@@ -163,10 +163,9 @@ function App() {
             )}
           </button>
         </div>
-      ) }
-
+      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

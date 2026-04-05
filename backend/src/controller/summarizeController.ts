@@ -1,9 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
 import { streamText } from "ai";
+import { Request, Response, NextFunction } from 'express';
 import { openRouter, SUMMARIZE_MODEL } from '../services/ai-service.js';
 
 export const summarize = async (req: Request, res: Response, next: NextFunction) => {
     try {
+
         const { text } = req.body;
 
         if (!text) {
@@ -13,7 +14,7 @@ export const summarize = async (req: Request, res: Response, next: NextFunction)
         const result = streamText({
                 model: openRouter(SUMMARIZE_MODEL),
                 system: `You are a concise article summarizer. 
-                         Given an article's text, write a clear and accurate summary in 3–5 sentences.
+                         Given an article's text, write a clear and accurate summary in 8-10 sentences.
                          Focus on the key points and main argument. Do not add opinions. 
                          Respond only with the summary — no preamble, no labels.`,
                 messages: [{ role: "user", content: text }],
